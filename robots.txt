@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://radar-de-licitaciones.pages.dev/sitemap.xml
