@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Radar gratis por NIT: procesos abiertos de SECOP II para su empresa</title>
+<meta name="description" content="Escriba el NIT de su empresa y vea al instante los procesos abiertos de SECOP II que encajan con lo que ya ganó, y cómo adjudica cada entidad. Gratis, con datos abiertos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:Inter,"Segoe UI",Roboto,Arial,sans-serif;color:#1f2933;background:#fff;line-height:1.55;font-size:1rem;overflow-wrap:break-word}
+.wrap{max-width:900px;margin:0 auto;padding:0 16px}
+.aviso{background:#f0f4f8;border-bottom:1px solid #d9e2ec;font-size:.85rem;color:#334e68;padding:10px 0}
+.marca{font-size:.9rem;font-weight:600;color:#0b69a3;margin:28px 0 8px}
+.marca a{color:inherit;text-decoration:none}
+h1{font-size:1.6rem;line-height:1.25;margin:0 0 10px;color:#102a43}
+h2{font-size:1.15rem;margin:26px 0 10px;color:#102a43}
+h3{font-size:1rem;margin:0 0 6px;color:#243b53}
+.lead{color:#334e68;margin:0 0 16px}
+form{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 8px}
+input{flex:1 1 220px;font-size:1.05rem;padding:12px 14px;border:2px solid #9fb3c8;border-radius:8px}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #f0b429;outline-offset:2px}
+button,.btn{font-weight:600;font-size:1rem;padding:12px 18px;border-radius:8px;border:2px solid #0b69a3;cursor:pointer;text-decoration:none;text-align:center}
+button,.btn-primario{background:#0b69a3;color:#fff}
+.btn-secundario{background:#fff;color:#0b69a3}
+.nota{font-size:.85rem;color:#52606d}
+#estado{background:#fffbea;border:1px solid #f0b429;border-radius:8px;padding:10px 12px;margin:14px 0}
+.resumen{background:#f0f4f8;border-radius:8px;padding:12px 14px;margin:16px 0}
+.op{border:1px solid #d9e2ec;border-radius:8px;padding:12px 14px;margin:0 0 12px}
+.meta{font-size:.92rem;color:#334e68;margin:0 0 6px}
+.intel{font-size:.92rem;background:#fffbea;border-left:3px solid #f0b429;padding:8px 10px;margin:8px 0}
+.aviso-error{background:#fdecea;border-left:3px solid #d64545;padding:10px 12px;border-radius:4px}
+.cta{background:#e3f0fb;border-radius:10px;padding:16px;margin:22px 0}
+.acciones{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+a{color:#0b69a3}
+footer{border-top:1px solid #d9e2ec;margin-top:30px;padding:18px 0;font-size:.82rem;color:#52606d}
+@media (min-width:640px){h1{font-size:2rem}.acciones{flex-direction:row;flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div class="aviso"><div class="wrap"><strong>Servicio independiente.</strong> No somos una entidad oficial ni estamos afiliados a Colombia Compra Eficiente ni a SECOP. Lo opera el asistente personal de inteligencia artificial de Ariel Virviescas, titular del servicio.</div></div>
+<main class="wrap">
+  <p class="marca"><a href="../">Radar de Licitaciones</a></p>
+  <h1>Su radar de licitaciones gratis, con solo el NIT</h1>
+  <p class="lead">Escriba el NIT de su empresa: leemos los contratos que ya ganó en SECOP II, los cruzamos con los procesos abiertos de hoy y le mostramos los que encajan, con lo que se sabe de cada entidad (cuántos oferentes suele tener y a qué porcentaje del presupuesto adjudica).</p>
+  <form id="form" autocomplete="off">
+    <label for="nit" class="nota" style="flex-basis:100%">NIT de la empresa (9 dígitos, sin dígito de verificación)</label>
+    <input id="nit" name="nit" inputmode="numeric" placeholder="Ej.: 900123456" required>
+    <button type="submit">Ver mi radar</button>
+  </form>
+  <p class="nota">Funciona con NIT de empresas. Solo usamos datos abiertos de SECOP II; no guardamos el NIT ni pedimos registro.</p>
+  <p id="estado" role="status" hidden></p>
+  <div id="resultado" aria-live="polite"></div>
+</main>
+<footer><div class="wrap">
+  <p>Fuente: SECOP II, Portal de Datos Abiertos www.datos.gov.co (Agencia Nacional de Contratación Pública - Colombia Compra Eficiente), licencia CC BY-SA 4.0. La afinidad sale de las palabras de los contratos ganados, porque casi ningún proceso abierto trae código UNSPSC. Los ganadores que son personas naturales no se nombran. No es asesoría legal ni contractual; verifique cada proceso en SECOP II antes de ofertar.</p>
+  <p><a href="../">Radar de Licitaciones</a> · Contacto: <a href="mailto:claudebusiness2000@gmail.com">claudebusiness2000@gmail.com</a></p>
+  <p><a href="../terminos.html">Términos del servicio</a></p>
+</div></footer>
+<script src="config.js"></script>
+<script src="radar.js"></script>
+</body>
+</html>
