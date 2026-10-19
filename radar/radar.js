@@ -174,12 +174,12 @@ function objeto(m) {
   return m.hits.some(w => rn.has(w)) ? n : (m.proceso.descripci_n_del_procedimiento || n);
 }
 async function entidad(nitEnt, clavesOrden) {
-  const k = "ent-" + nitEnt;
+  const k = "ent2-" + nitEnt;  // v2: sin contratación directa con ofertas, como las páginas por sector
   let filas = leer(k);
   if (!filas) {
     filas = await soda(PROCESOS, {
       "$select": "id_del_proceso,nombre_del_procedimiento,precio_base,valor_total_adjudicacion,proveedores_unicos_con,respuestas_al_procedimiento,nombre_del_proveedor,fecha_adjudicacion",
-      "$where": "nit_entidad='" + nitEnt + "' AND adjudicado='Si' AND modalidad_de_contratacion != 'Contratación directa' AND precio_base > 0 AND precio_base < " +
+      "$where": "nit_entidad='" + nitEnt + "' AND adjudicado='Si' AND modalidad_de_contratacion not in ('Contratación directa','Contratación Directa (con ofertas)') AND precio_base > 0 AND precio_base < " +
         CFG.MAX_VALOR + " AND valor_total_adjudicacion > 0 AND fecha_adjudicacion >= '" + D730 + "T00:00:00'",
       "$order": "fecha_adjudicacion DESC", "$limit": "3000"});
     guardar(k, filas);
