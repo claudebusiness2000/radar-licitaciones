@@ -54,6 +54,14 @@ footer{border-top:1px solid #d9e2ec;margin-top:30px;padding:18px 0;font-size:.82
   <p class="nota">Funciona con NIT de empresas. Solo usamos datos abiertos de SECOP II; no guardamos el NIT ni pedimos registro.</p>
   <p id="estado" role="status" hidden></p>
   <div id="resultado" aria-live="polite"></div>
+  <div id="compartir" class="cta" hidden>
+    <p><b>¿Le sirve a alguien más?</b> Envíe este radar a su equipo o a otra empresa que le venda al Estado. El enlace abre el radar con el mismo NIT.</p>
+    <div class="acciones">
+      <a class="btn btn-secundario" id="compartir-wa" href="https://wa.me/" rel="noopener" target="_blank">Enviar por WhatsApp</a>
+      <button type="button" class="btn btn-secundario" id="compartir-copiar">Copiar el enlace</button>
+    </div>
+    <p class="nota" id="compartir-ok" role="status"></p>
+  </div>
 </main>
 <footer><div class="wrap">
   <p>Fuente: SECOP II, Portal de Datos Abiertos www.datos.gov.co (Agencia Nacional de Contratación Pública - Colombia Compra Eficiente), licencia CC BY-SA 4.0. La afinidad sale de las palabras de los contratos ganados, porque casi ningún proceso abierto trae código UNSPSC. Los ganadores que son personas naturales no se nombran. No es asesoría legal ni contractual; verifique cada proceso en SECOP II antes de ofertar.</p>
@@ -62,5 +70,6 @@ footer{border-top:1px solid #d9e2ec;margin-top:30px;padding:18px 0;font-size:.82
 </div></footer>
 <script src="config.js"></script>
 <script src="radar.js"></script>
+<script src="compartir.js"></script>
 </body>
 </html>

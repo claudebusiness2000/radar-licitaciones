@@ -89,13 +89,13 @@ function guardar(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } c
 function leer(k) { try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
 
 async function abiertos() {
-  let filas = leer("abiertos-" + HOY);
+  let filas = leer("abiertos2-" + HOY);  // 2: trae codigo_entidad (unidad compradora)
   if (!filas) {
     const wp = "estado_del_procedimiento in ('Publicado','Abierto') AND adjudicado='No' AND estado_de_apertura_del_proceso='Abierto' " +
-      "AND modalidad_de_contratacion != 'Contratación directa' AND fecha_de_recepcion_de >= '" + HOY + "T00:00:00' " +
+      "AND modalidad_de_contratacion not in ('Contratación directa','Contratación Directa (con ofertas)') AND fecha_de_recepcion_de >= '" + HOY + "T00:00:00' " +
       "AND precio_base > 0 AND precio_base < " + CFG.MAX_VALOR;
     const crudas = await soda(PROCESOS, {
-      "$select": "entidad,nit_entidad,departamento_entidad,ciudad_entidad,id_del_proceso,nombre_del_procedimiento," +
+      "$select": "entidad,nit_entidad,codigo_entidad,departamento_entidad,ciudad_entidad,id_del_proceso,nombre_del_procedimiento," +
         "descripci_n_del_procedimiento,modalidad_de_contratacion,precio_base,fecha_de_recepcion_de,urlproceso,fecha_de_ultima_publicaci",
       "$where": wp, "$order": "fecha_de_recepcion_de,id_del_proceso", "$limit": "50000"});
     const unicos = new Map();
@@ -111,7 +111,7 @@ async function abiertos() {
       r.cierre = (r.fecha_de_recepcion_de || "").slice(0, 10);
       filas.push(r);
     }
-    guardar("abiertos-" + HOY, filas);
+    guardar("abiertos2-" + HOY, filas);
   }
   // mismo proceso con dos avisos: misma entidad, presupuesto y cierre cuentan como uno (el más reciente)
   const vistos = new Set(), unicas = [];
@@ -173,34 +173,53 @@ function objeto(m) {
   const rn = raices(n);
   return m.hits.some(w => rn.has(w)) ? n : (m.proceso.descripci_n_del_procedimiento || n);
 }
-async function entidad(nitEnt, clavesOrden) {
-  const k = "ent2-" + nitEnt;  // v2: sin contratación directa con ofertas, como las páginas por sector
+// Cómo adjudica la unidad compradora (codigo_entidad, no el NIT: 899999061 reúne las secretarías y alcaldías locales de
+// Bogotá; 899999034, los centros del SENA), con las reglas de radar.py entidad() y de las páginas por sector: sin
+// contratación directa con o sin ofertas, una fila por id_del_proceso (SECOP trae una por adjudicación) y valor
+// adjudicado frente al presupuesto solo cuando hubo una sola adjudicación.
+const ADJUDICADOS = "adjudicado='Si' AND modalidad_de_contratacion not in ('Contratación directa','Contratación Directa (con ofertas)') " +
+  "AND precio_base > 0 AND precio_base < " + CFG.MAX_VALOR + " AND valor_total_adjudicacion > 0 AND fecha_adjudicacion >= '" + D730 + "T00:00:00'";
+const CAMPOS_HISTORIAL = "id_del_proceso,max(nombre_del_procedimiento) as nombre,max(precio_base) as precio," +
+  "max(valor_total_adjudicacion) as vmax,min(valor_total_adjudicacion) as vmin,count(*) as filas," +
+  "max(proveedores_unicos_con) as pu,max(respuestas_al_procedimiento) as resp," +
+  "max(fecha_adjudicacion) as fecha,max(nombre_del_proveedor) as pmax,min(nombre_del_proveedor) as pmin";
+function oferentesDe(r) {
+  const pu = Math.trunc(parseFloat(r.pu || 0));
+  return pu > 0 ? pu : Math.trunc(parseFloat(r.resp || 0));
+}
+function ratioAdjudicado(r) {
+  if (!(r.filas === "1" || (r.pmax === r.pmin && r.vmax === r.vmin))) return null;
+  const v = parseFloat(r.vmax) / parseFloat(r.precio);
+  return v >= 0.3 && v <= 1.2 ? v : null;
+}
+async function entidad(codigo, clavesOrden) {
+  const k = "ent3-" + codigo + "-" + HOY;  // v3: por unidad compradora y una fila por proceso, como radar.py
   let filas = leer(k);
   if (!filas) {
-    filas = await soda(PROCESOS, {
-      "$select": "id_del_proceso,nombre_del_procedimiento,precio_base,valor_total_adjudicacion,proveedores_unicos_con,respuestas_al_procedimiento,nombre_del_proveedor,fecha_adjudicacion",
-      "$where": "nit_entidad='" + nitEnt + "' AND adjudicado='Si' AND modalidad_de_contratacion not in ('Contratación directa','Contratación Directa (con ofertas)') AND precio_base > 0 AND precio_base < " +
-        CFG.MAX_VALOR + " AND valor_total_adjudicacion > 0 AND fecha_adjudicacion >= '" + D730 + "T00:00:00'",
-      "$order": "fecha_adjudicacion DESC", "$limit": "3000"});
+    filas = [];
+    for (let off = 0; ; off += 50000) {
+      const pag = await soda(PROCESOS, {"$select": CAMPOS_HISTORIAL, "$where": "codigo_entidad='" + codigo + "' AND " + ADJUDICADOS,
+        "$group": "id_del_proceso", "$order": "id_del_proceso", "$limit": "50000", "$offset": String(off)});
+      filas.push(...pag);
+      if (pag.length < 50000) break;
+    }
     guardar(k, filas);
   }
-  const unicos = new Map(); for (const r of filas) if (r.id_del_proceso) unicos.set(r.id_del_proceso, r);
   const ratios = [], oferentes = [], similares = [];
   const nucleo = new Set(clavesOrden.slice(0, 3)), top1 = clavesOrden[0];
-  for (const r of unicos.values()) {
-    const p = parseFloat(r.precio_base), v = parseFloat(r.valor_total_adjudicacion), q = v / p;
-    if (q >= 0.3 && q <= 1.2) ratios.push(q);
-    const o = Math.trunc(parseFloat(r.proveedores_unicos_con || r.respuestas_al_procedimiento || 0));
+  for (const r of filas) {
+    const q = ratioAdjudicado(r);
+    if (q !== null) ratios.push(q);
+    const o = oferentesDe(r);
     if (o > 0) oferentes.push(o);
-    const comunes = [...raices(r.nombre_del_procedimiento || "")].filter(w => nucleo.has(w));
-    if ((comunes.length >= 2 || (top1 && comunes.includes(top1))) && q >= 0.3 && q <= 1.2) similares.push(r);
+    const comunes = [...raices(r.nombre || "")].filter(w => nucleo.has(w));
+    if ((comunes.length >= 2 || (top1 && comunes.includes(top1))) && q !== null) similares.push(r);
   }
-  similares.sort((a, b) => (b.fecha_adjudicacion || "").localeCompare(a.fecha_adjudicacion || ""));
-  return {n: unicos.size, ratio: mediana(ratios), nRatio: ratios.length, oferentes: mediana(oferentes), nOferentes: oferentes.length,
+  similares.sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+  return {n: filas.length, ratio: mediana(ratios), nRatio: ratios.length, oferentes: mediana(oferentes), nOferentes: oferentes.length,
     unaOferta: oferentes.length ? oferentes.filter(o => o === 1).length / oferentes.length : null,
-    similares: similares.slice(0, 3).map(r => ({nombre: oracion(corto(r.nombre_del_procedimiento || "", 110)),
-      ganador: esEmpresa(r.nombre_del_proveedor || "") ? r.nombre_del_proveedor : "una persona natural",
-      ratio: parseFloat(r.valor_total_adjudicacion) / parseFloat(r.precio_base), fecha: (r.fecha_adjudicacion || "").slice(0, 10)}))};
+    similares: similares.slice(0, 3).map(r => ({nombre: oracion(corto(r.nombre || "", 110)),
+      ganador: esEmpresa(r.pmax || "") ? r.pmax : "una persona natural", ratio: ratioAdjudicado(r), fecha: (r.fecha || "").slice(0, 10)}))};
 }
 function textoEntidad(e) {
   if (!e || e.n < 3) return "Sin historial suficiente de esta entidad en 24 meses.";
@@ -235,9 +254,13 @@ function cta(nit) {
     '<a class="btn btn-primario" href="mailto:claudebusiness2000@gmail.com?subject=' + asunto + "&amp;body=" + cuerpo + '">Recibir esto cada lunes: 2 semanas gratis</a>' +
     '<a class="btn btn-secundario" href="' + CFG.CHECKOUT + '" rel="noopener">Suscribirme: ' + CFG.PRECIO_USD + " USD al mes</a></div></div>";
 }
+let corrida = 0;  // si llega otra búsqueda, la anterior deja de escribir (si no, mostraba una empresa con el ?nit= de otra)
 async function correr(nit) {
+  const run = ++corrida, vigente = () => run === corrida;
+  estado("");  // si había otra búsqueda en curso, su mensaje de avance no se queda pegado
   $("resultado").innerHTML = "";
   if (!nitJuridico(nit)) {
+    history.replaceState(null, "", location.pathname);
     $("resultado").innerHTML = '<p class="aviso-error">El radar gratis funciona con el NIT de una empresa: 9 dígitos que empiezan por 8 o 9, sin dígito de verificación.</p>';
     return;
   }
@@ -245,6 +268,7 @@ async function correr(nit) {
   try {
     estado("1/3 · Leyendo los contratos que su empresa ganó en SECOP II…");
     const [perf, ab] = await Promise.all([perfil(nit), (estado("1/3 · Leyendo contratos y procesos abiertos de hoy…"), abiertos())]);
+    if (!vigente()) return;
     if (!perf) { estado(""); $("resultado").innerHTML = '<p class="aviso-error">No encontramos contratos de procesos competitivos de este NIT en los últimos 12 meses en SECOP II, así que no podemos calcular qué procesos encajan con su empresa. Si quiere, escríbanos y armamos su radar a partir de lo que vende.</p>' + cta(nit); return; }
     estado("2/3 · Cruzando su perfil con " + ab.length + " procesos abiertos hoy…");
     const claves = palabrasClave(perf.df, perf.nDocs, frecuencias(ab), ab.length);
@@ -252,12 +276,14 @@ async function correr(nit) {
     const items = matches.slice(0, 15), orden = claves.map(([w]) => w), intel = new Map();
     let i = 0;
     for (const m of items.slice(0, 10)) {
-      const ne = m.proceso.nit_entidad;
-      if (ne && !intel.has(ne)) { estado("3/3 · Analizando cómo adjudica cada entidad (" + (++i) + ")…"); intel.set(ne, await entidad(ne, orden)); }
+      const ce = m.proceso.codigo_entidad;
+      if (ce && !intel.has(ce)) { estado("3/3 · Analizando cómo adjudica cada entidad (" + (++i) + ")…"); intel.set(ce, await entidad(ce, orden)); }
+      if (!vigente()) return;
     }
     estado("");
     pintar(perf, claves, matches, items, intel);
   } catch (e) {
+    if (!vigente()) return;
     estado("");
     $("resultado").innerHTML = '<p class="aviso-error">No pudimos consultar los datos abiertos de datos.gov.co en este momento (' + esc(e.message) + "). Intente de nuevo en unos minutos.</p>";
   }
@@ -272,7 +298,7 @@ function pintar(perf, claves, matches, items, intel) {
   } else {
     h += "<h2>Procesos abiertos que encajan (" + matches.length + " hoy; aquí los " + items.length + " más afines)</h2>";
     items.forEach((m, k) => {
-      const p = m.proceso, e = intel.get(p.nit_entidad);
+      const p = m.proceso, e = intel.get(p.codigo_entidad);
       h += '<div class="op"><h3>' + (k + 1) + ". " + esc(oracion(corto(objeto(m), 220))) + '</h3><p class="meta"><b>' + esc(p.entidad) + "</b> · " +
         esc(p.ciudad_entidad) + ", " + esc(p.departamento_entidad) + '</p><p class="meta">Presupuesto: <b>' + esc(cop(p.precio_base)) +
         "</b> · Recibe ofertas hasta el <b>" + esc(fechaLarga(p.cierre)) + "</b> · " + esc(p.modalidad_de_contratacion) + "</p>" +
